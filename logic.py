@@ -1,8 +1,21 @@
 import sqlite3
 from config import DATABASE
 
-skills = [ (_,) for _ in (['Python', 'SQL', 'API', 'Telegram'])]
-statuses = [ (_,) for _ in (['На этапе проектирования', 'В процессе разработки', 'Разработан. Готов к использованию.', 'Обновлен', 'Завершен. Не поддерживается'])]
+skills = [
+    ('Python',),
+    ('SQL',),
+    ('API',),
+    ('Telegram',),
+    ('Docker',),
+    ('FastAPI',),
+]
+
+statuses = [
+    ('В разработке',),
+    ('На паузе',),
+    ('Завершен',),
+    ('Идея',),
+]
 
 class DB_Manager:
     def __init__(self, database):
@@ -36,6 +49,15 @@ class DB_Manager:
                         )''')
             conn.commit()
 
+    def add_description_column(self):
+        conn = sqlite3.connect(self.database)
+        with conn:
+            try:
+                conn.execute('ALTER TABLE projects ADD COLUMN description TEXT')
+            except sqlite3.OperationalError:
+                pass
+            conn.commit()
+
     def __executemany(self, sql, data):
         conn = sqlite3.connect(self.database)
         with conn:
@@ -50,16 +72,14 @@ class DB_Manager:
             return cur.fetchall()
         
     def default_insert(self):
-        sql = 'INSERT OR IGNORE INTO skills (skill_name) values(?)'
-        data = skills
-        self.__executemany(sql, data)
-        sql = 'INSERT OR IGNORE INTO status (status_name) values(?)'
-        data = statuses
-        self.__executemany(sql, data)
+        sql = 'INSERT OR IGNORE INTO skills (skill_name) VALUES (?)'
+        self.__executemany(sql, skills)
+        sql = 'INSERT OR IGNORE INTO status (status_name) VALUES (?)'
+        self.__executemany(sql, statuses)
 
 
     def insert_project(self, data):
-        sql = "" # Запиши сюда правильный SQL запрос
+        sql = 'INSERT INTO projects (user_id, project_name, description, url, status_id) VALUES (?, ?, ?, ?, ?)'
         self.__executemany(sql, data)
 
 
@@ -73,7 +93,7 @@ class DB_Manager:
 
 
     def get_statuses(self):
-        sql = "" # Запиши сюда правильный SQL запрос
+        sql = "SELECT status_name FROM status"
         return self.__select_data(sql)
         
 
@@ -84,11 +104,11 @@ class DB_Manager:
         else: return None
 
     def get_projects(self, user_id):
-        sql = "" # Запиши сюда правильный SQL запрос
-        return self.__select_data(sql, data = (user_id,))
+        sql = "SELECT project_id, user_id, project_name, status_id, url FROM projects WHERE user_id = ?"
+        return self.__select_data(sql, data=(user_id,))
         
     def get_project_id(self, project_name, user_id):
-        return self.__select_data(sql='SELECT project_id FROM projects WHERE project_name = ? AND user_id = ?  ', data = (project_name, user_id,))[0][0]
+        return self.__select_data(sql='SELECT project_id FROM projects WHERE project_name = ? AND user_id = ?  ', data=(project_name, user_id,))[0][0]
         
     def get_skills(self):
         return self.__select_data(sql='SELECT * FROM skills')
@@ -110,9 +130,14 @@ WHERE project_name=? AND user_id=?
         return self.__select_data(sql=sql, data = (project_name, user_id))
 
 
+    def update_project(self, user_id, project_name, param, value):
+        sql = f"""UPDATE projects SET {param} = ?
+WHERE project_name = ? AND user_id = ?"""
+        self.__executemany(sql, [(value, project_name, user_id)])
+
     def update_projects(self, param, data):
         sql = f"""UPDATE projects SET {param} = ? 
-WHERE project_name = ? AND user_id = ?""" # Запиши сюда правильный SQL запрос
+WHERE project_name = ? AND user_id = ?"""
         self.__executemany(sql, [data]) 
 
 
